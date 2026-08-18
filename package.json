@@ -1,0 +1,41 @@
+{
+  "name": "@deepseek-ai/dsh-tool-memory",
+  "version": "1.0.0",
+  "description": "A persistent memory plugin for DeepSeek Harness that enables agents to store and recall information across sessions",
+  "main": "lib/index.js",
+  "type": "module",
+  "files": [
+    "lib/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/dsh-memory-plugin.git"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "plugin",
+    "memory",
+    "persistence",
+    "agent",
+    "ai"
+  ],
+  "author": "DeepSeek Harness Community",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourusername/dsh-memory-plugin/issues"
+  },
+  "homepage": "https://github.com/yourusername/dsh-memory-plugin#readme",
+  "dependencies": {
+    "@deepseek-ai/dsh-tools": "^0.1.0-rc.7",
+    "@deepseek-ai/schemastery": "^3.18.1"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
