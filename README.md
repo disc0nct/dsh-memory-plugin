@@ -1,5 +1,7 @@
 # @deepseek-ai/dsh-tool-memory
 
+![DSH Plugin](https://img.shields.io/badge/DSH-Plugin-blue.svg)
+
 A persistent memory plugin for DeepSeek Harness (DSH) that enables agents to store and recall information across sessions, similar to the memory system in Hermes agent AI.
 
 ## Features
