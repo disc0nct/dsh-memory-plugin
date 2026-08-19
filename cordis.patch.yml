@@ -1,0 +1,6 @@
+# DSH bundle manifest for dsh-tool-memory. Loaded as a profile bundle layer:
+# declares the plugin row the Harness mounts (apply + Config + inject come
+# from the package's own exports).
+- insert:
+    - id: tool-memory
+      name: '@deepseek-ai/dsh-tool-memory'

@@ -11,29 +11,32 @@ A persistent memory plugin for DeepSeek Harness (DSH) that enables agents to sto
 - 🏷️ **Categorization**: Organize memories with optional categories
 - 📋 **Multiple Tools**: Store, search, list, delete, and clear memories
 - 🔄 **Atomic Writes**: Safe file operations to prevent corruption
-- 📖 **Built-in Skill**: Includes helpful documentation on how to use memory effectively
 
 ## Installation
 
+This package ships a `dsh.bundle` manifest, so it can be installed as a
+regular profile bundle.
+
 ### As a DSH Plugin
 
-1. Add the plugin to your DSH profile:
+1. Add the plugin to your DSH profile (this runs `pnpm add` in the profile
+   directory, so a git URL works):
    ```bash
-   # From your project directory
-   dsh plugin --profile <your-profile> add @deepseek-ai/dsh-tool-memory
+   dsh plugin --profile <your-profile> add github:disc0nct/dsh-memory-plugin
    ```
 
-2. Or manually add to your profile's `package.json`:
+2. Register it as a bundle in the profile's `package.json`
+   (`$DSH_HOME/profiles/<your-profile>/package.json`):
    ```json
    {
      "dependencies": {
-       "@deepseek-ai/dsh-tool-memory": "^1.0.0"
+       "@deepseek-ai/dsh-tool-memory": "github:disc0nct/dsh-memory-plugin"
      },
      "dsh": {
        "profile": {
          "bundles": [
            "@deepseek-ai/dsh-base",
-           "@deepseek-ai/dsh-web-app",  // or your preferred bundles
+           "@deepseek-ai/dsh-web-app",
            "@deepseek-ai/dsh-tool-memory"
          ]
        }
@@ -41,19 +44,9 @@ A persistent memory plugin for DeepSeek Harness (DSH) that enables agents to sto
    }
    ```
 
-### Manual Installation
-
-If you prefer to manage dependencies manually:
-
-1. Copy the plugin to your project's `node_modules`:
+3. Boot the profile:
    ```bash
-   mkdir -p node_modules/@deepseek-ai
-   cp -r path/to/dsh-tool-memory node_modules/@deepseek-ai/
-   ```
-
-2. Install peer dependencies:
-   ```bash
-   npm install @deepseek-ai/dsh-tools@^0.1.0-rc.7 @deepseek-ai/schemastery@^3.18.1
+   dsh --profile <your-profile>
    ```
 
 ## Usage
@@ -159,11 +152,14 @@ Memories are stored in `~/.dsh/memory.json` with this structure:
 
 ## Configuration
 
-You can customize the memory file path by providing a config when registering the plugin (though typically this is handled automatically by DSH):
+The memory file defaults to `$DSH_HOME/memory.json` (or `~/.dsh/memory.json`
+when `DSH_HOME` is unset). Override it in the profile's patch layer
+(`$DSH_HOME/profiles/<your-profile>/cordis.patch.yml`):
 
-```javascript
-// In your plugin configuration
-const memoryPath = join(process.env.DSH_HOME || join(homedir(), '.dsh'), 'custom-memory.json');
+```yaml
+- id: tool-memory
+  config:
+    memoryPath: /absolute/path/to/memory.json
 ```
 
 ## Examples
@@ -229,7 +225,7 @@ The plugin implements persistent memory by:
 ## Requirements
 
 - DeepSeek Harness (DSH) v0.1.0-rc.7 or later
-- Node.js v16.0.0 or later
+- Node.js v18.0.0 or later
 - Peer dependencies:
   - `@deepseek-ai/dsh-tools`: ^0.1.0-rc.7
   - `@deepseek-ai/schemastery`: ^3.18.1
