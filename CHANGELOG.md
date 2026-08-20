@@ -2,6 +2,25 @@
 
 All notable changes to `@deepseek-ai/dsh-tool-memory` are documented here. Follows [Keep a Changelog](https://keepachangelog.com/) and [SemVer](https://semver.org/).
 
+## [1.3.1] - 2026-08-21
+
+### Fixed
+- `lib/config.js:27-28` relative `memoryPath` now resolves against `DSH_HOME` instead of CWD
+- `lib/validation.js:18-19` reject empty `category` strings
+- `lib/storage.js:91` remove dead `_normalizeTimestamp` export
+- `lib/storage.js:116` remove unused `dirty` flag and stale migration comments in `loadMemory`
+- `lib/storage.js` simplify timestamp normalization in `loadMemory` and remove dead branches
+- `lib/search/scoring.js:122-124,151-152` remove unused overload handling and `combined` variable in `scoreFact`
+- `lib/search/scoring.js` remove dead `_scoreFactCompat` compat wrapper
+- `lib/search/scoring.js:196-199` remove O(n) prefix-scan over inverted index keys (performance cliff fix)
+- `package.json:3` bump `1.3.1`
+
+### Changed
+- None
+
+### Added
+- None
+
 ## [1.3.0] - 2026-08-20
 
 ### Added
@@ -72,6 +91,7 @@ All notable changes to `@deepseek-ai/dsh-tool-memory` are documented here. Follo
 - `cordis.patch.yml:1-6` bundle `tool-memory`, `package.json:1-49` `dsh.bundle.patch`
 - `README.md:1-252` install/usage, `LICENSE` MIT
 
+[1.3.1]: https://github.com/disc0nct/dsh-memory-plugin/releases/tag/v1.3.1
 [1.3.0]: https://github.com/disc0nct/dsh-memory-plugin/releases/tag/v1.3.0
 [1.2.0]: https://github.com/disc0nct/dsh-memory-plugin/releases/tag/v1.2.0
 [1.1.1]: https://github.com/disc0nct/dsh-memory-plugin/releases/tag/v1.1.1
