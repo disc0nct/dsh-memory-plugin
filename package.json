@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-tool-memory",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A persistent memory plugin for DeepSeek Harness that enables agents to store and recall information across sessions — DSH-native tools with atomic storage, validation, and concurrency-safe reads",
   "main": "lib/index.js",
   "type": "module",
@@ -39,7 +39,13 @@
       "patch": "./cordis.patch.yml"
     }
   },
-  "dependencies": {
+  "dependencies": {},
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-tools": "^0.1.0-rc.8",
+    "@deepseek-ai/schemastery": "^3.18.1"
+  },
+  "devDependencies": {
     "@deepseek-ai/dsh-tools": "^0.1.0-rc.8",
     "@deepseek-ai/schemastery": "^3.18.1"
   },
