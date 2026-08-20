@@ -7,10 +7,12 @@ A persistent memory plugin for DeepSeek Harness (DSH) that enables agents to sto
 ## Features
 
 - 🧠 **Persistent Storage**: Memories are saved to disk and survive across sessions
-- 🔍 **Flexible Search**: Search memories by keyword or category
-- 🏷️ **Categorization**: Organize memories with optional categories
-- 📋 **Multiple Tools**: Store, search, list, delete, and clear memories
-- 🔄 **Atomic Writes**: Safe file operations to prevent corruption
+- 🔍 **Flexible Search**: Search memories by keyword or category (keys, values, and categories)
+- 🏷️ **Categorization**: Organize memories with optional categories (kebab-case, defaults to `general`)
+- 📋 **Six Tools**: `memory_store`, `memory_search`, `memory_get`, `memory_list`, `memory_delete`, `memory_clear`
+- 🔄 **Atomic Writes**: `write+rename` with `mkdir -p`, corrupt-file recovery to `*.corrupt.*`
+- ✅ **Validation & Safety**: kebab-case keys, length limits, `memory_clear` requires `confirm:true`
+- ⚡ **DSH-Native UX**: `defineTool` with `isConcurrencySafe` (reads parallel), `presentCall` `kind: search/read/edit/delete`
 
 ## Installation
 
@@ -82,7 +84,7 @@ await ctx.tools.memory_store({
 ```
 
 #### `memory_search`
-Search for memories by keyword or category.
+Search for memories by keyword, category, or semantic paraphrase (hybrid `keyword+token Jaccard` ranking, dependency-free).
 
 ```javascript
 // Search all memories
@@ -101,10 +103,30 @@ const results = await ctx.tools.memory_search({
   category: "decisions",
   limit: 5
 });
+
+// Semantic paraphrase: "fav color" matches "favorite-color"
+const results = await ctx.tools.memory_search({
+  query: "fav color",
+  mode: "hybrid" // | "keyword" | "semantic" (default: "hybrid")
+});
+
+// Force exact substring only
+const results = await ctx.tools.memory_search({
+  query: "color",
+  mode: "keyword"
+});
+```
+
+#### `memory_get`
+Fast exact lookup by key (vs `memory_search` scan).
+
+```javascript
+const { found, fact } = await ctx.tools.memory_get({ key: "user-name" });
+if (found) console.log(fact.value);
 ```
 
 #### `memory_list`
-List all stored memories.
+List all stored memories (most recent first, optionally filtered).
 
 ```javascript
 // List all memories
@@ -126,10 +148,14 @@ await ctx.tools.memory_delete({
 ```
 
 #### `memory_clear`
-Clear ALL stored memories (use with caution).
+Clear ALL stored memories (requires explicit confirmation).
 
 ```javascript
-await ctx.tools.memory_clear();
+// cancelled without confirm
+await ctx.tools.memory_clear(); // { cleared:false, count: N }
+
+// confirmed
+await ctx.tools.memory_clear({ confirm: true }); // { cleared:true, count: N }
 ```
 
 ## Memory Storage Format
@@ -216,16 +242,18 @@ const projectInfo = await ctx.tools.memory_list({
 
 The plugin implements persistent memory by:
 
-1. **File Storage**: Uses atomic writes to `~/.dsh/memory.json` to prevent corruption
-2. **Efficient Lookups**: Loads the entire memory file on each operation (suitable for typical usage)
-3. **Upsert Behavior**: `memory_store` replaces existing memories with the same key
-4. **Chronological Order**: Search results are returned with most recent first
-5. **Safe Operations**: All file operations use temporary files and atomic renames
+1. **File Storage**: Atomic `writeFile(tmp)+rename` to `~/.dsh/memory.json` (no double-write), `mkdir -p`, max 5000 facts
+2. **Efficient Lookups**: Loads entire file per op, hybrid search scores via token Jaccard + substring boosts, then ISO timestamp desc
+3. **Upsert Behavior**: `memory_store` replaces existing memories with the same key and moves it to most-recent
+4. **Validation**: `key`/`category` kebab-case (`^[a-z0-9]+(-[a-z0-9]+)*$`), `value` ≤10000 chars, `category` ≤32 chars
+5. **Recovery**: On JSON SyntaxError, backs up to `memory.json.corrupt.<ts>` and returns empty store
+6. **Modular Layout**: `lib/config.js`, `lib/storage.js`, `lib/validation.js`, `lib/search/scoring.js`, `lib/tools/*` (DSH `apply` re-exports)
+7. **DSH Idioms**: `Config` via `@deepseek-ai/schemastery`, `defineTool` with `timeoutMs:5000`, `isConcurrencySafe` for reads, `kind` hints
 
 ## Requirements
 
-- DeepSeek Harness (DSH) v0.1.0-rc.7 or later
-- Node.js v18.0.0 or later
+- DeepSeek Harness (DSH) v0.1.0-rc.7 or later (tested with `rc.8`)
+- Node.js v18.0.0 or later (uses `crypto.randomUUID`, `fs/promises.rename`)
 - Peer dependencies:
   - `@deepseek-ai/dsh-tools`: ^0.1.0-rc.7
   - `@deepseek-ai/schemastery`: ^3.18.1
