@@ -2,6 +2,27 @@
 
 All notable changes to `@deepseek-ai/dsh-tool-memory` are documented here. Follows [Keep a Changelog](https://keepachangelog.com/) and [SemVer](https://semver.org/).
 
+## [1.3.0] - 2026-08-20
+
+### Added
+- `lib/storage.js:9-62` per-file `withWriteLock` Promise queue (`_writeQueues` Map) serializing `store/delete/clear` `load→mutate→save` (fixes lost updates) — dependency-free, `withWriteLock` exported
+- `lib/storage.js:64-85` `cleanupOrphans` (scan `dirname` for `*.tmp.*` >1h, `readdir` + `stat` + `unlink`, called `await` on every `loadMemory`)
+- `lib/storage.js:16-24` `MemoryPluginError` + `withRetry` (3× exponential backoff 100*2^attempt + jitter for `EACCES/EBUSY/EMFILE/ENOSPC/EPERM/EAGAIN`) wrapping `stat/readFile/writeFile/mkdir/rename`
+- `lib/validation.js:5-6,24-27` `MAX/MIN_TIMESTAMP_MS`, `validateTimestampMs` + `lib/storage.js:91-103,131-162,199-210` `timestampMs` generation (`Date.now()`), migration on `load` (backfill `Date.parse(timestamp)` → `timestampMs`, `dirty` lazy), `compareRecent` prefers `timestampMs` (numeric, no `Date.parse` per compare)
+- `lib/search/scoring.js:50-136` inverted index `Map<token,Set<id>>` (`_invertedIndex`, `_tokenCache` `Map<id,{hash,tokens}>`, `getFactTokens`, `buildIndex`, `_clearIndex`) — `hybridSearch` union of id sets for `qTokens` → sub-linear candidates, fallback linear scan, `scoreFact` now uses cached `Set` and `timestampMs` for sort
+- `lib/search/scoring.js:36-48` `tokenSubstringBonus` length ≥3 guard (fixes false `23` numeric matches)
+- `lib/tools/store.js:46,54` `timestampMs` in output schema + fact generation (`nowMs`), `delete.js:3,30` + `clear.js:3,27` `withWriteLock` wrapping, `search/list/get/stats` abort guard already
+- `test/phase1-2.test.js:1-226` 9 new tests: concurrent `Promise.all` no lost updates, same-key upsert serialization, orphan cleanup, `timestampMs` sort & migration, retry smoke, inverted index 100-fact sub-linear, token cache, graceful fallback
+
+### Changed
+- `lib/storage.js:194-230` `saveMemory` now raw (no internal lock) — callers hold `withWriteLock`; `loadMemory:105-107` `await cleanupOrphans`, `105-115` `withRetry(stat)`, `155-162` backfill `timestampMs`
+- `lib/validation.js:1-5` add timestamp constants
+- `package.json:3` bump `1.3.0`
+
+### Fixed
+- Race lost-update via `withWriteLock`; orphan `.tmp` leak; `Date.parse` per-compare → `timestampMs` numeric
+- `tokenSubstringBonus` numeric false positives (`nonexistenttoken123` → 0)
+
 ## [1.2.0] - 2026-08-20
 
 ### Added
@@ -51,6 +72,7 @@ All notable changes to `@deepseek-ai/dsh-tool-memory` are documented here. Follo
 - `cordis.patch.yml:1-6` bundle `tool-memory`, `package.json:1-49` `dsh.bundle.patch`
 - `README.md:1-252` install/usage, `LICENSE` MIT
 
+[1.3.0]: https://github.com/disc0nct/dsh-memory-plugin/releases/tag/v1.3.0
 [1.2.0]: https://github.com/disc0nct/dsh-memory-plugin/releases/tag/v1.2.0
 [1.1.1]: https://github.com/disc0nct/dsh-memory-plugin/releases/tag/v1.1.1
 [1.1.0]: https://github.com/disc0nct/dsh-memory-plugin/releases/tag/v1.1.0

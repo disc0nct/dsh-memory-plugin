@@ -10,10 +10,10 @@ A persistent memory plugin for DeepSeek Harness (DSH) that enables agents to sto
 - 🔍 **Flexible Search**: Hybrid `keyword+semantic` (token Jaccard + substring) with `mode: hybrid|keyword|semantic`
 - 🏷️ **Categorization**: Organize memories with optional categories (kebab-case, defaults to `general`)
 - 📋 **Seven Tools**: `memory_store`, `memory_search`, `memory_get`, `memory_list`, `memory_delete`, `memory_clear`, `memory_stats`
-- 🔄 **Atomic Writes**: `write+rename` with `mkdir -p`, corrupt-file recovery to `*.corrupt.*`
-- ⚡ **Performance**: In-memory `mtime` cache (no re-read if unchanged), `MAX_FACTS` cap, `timeoutMs:5000`, `isConcurrencySafe` for reads
-- ✅ **Validation & Safety**: kebab-case keys, length limits, `memory_clear` requires `confirm:true`, `exec.signal` abort handling
-- 🧩 **Modular & DSH-Native**: `lib/config|storage|validation|search/scoring|tools/*`, `peerDependencies` to avoid dual-instance `prepare` bug
+- 🔄 **Atomic Writes**: `write+rename` with `mkdir -p`, corrupt-file recovery to `*.corrupt.*`, orphan `*.tmp.*` sweep (>1h) on load
+- ⚡ **Performance**: In-memory `mtime` cache, `timestampMs` numeric sort, inverted index `Map<token,Set<id>>` for sub-linear `hybridSearch`, `MAX_FACTS` cap, `timeoutMs:5000`, `isConcurrencySafe` for reads
+- ✅ **Validation & Safety**: kebab-case keys, `MAX_TIMESTAMP_MS`, `timestampMs` auto-generated, `MemoryPluginError` + 3× retry for `EACCES/EBUSY`, `memory_clear` `confirm:true`, `withWriteLock` per-file serialization
+- 🧩 **Modular & DSH-Native**: `lib/config|storage|validation|search/scoring|tools/*`, `peerDependencies` to avoid dual-instance `prepare` bug, graceful fallback to linear scan
 
 ## Installation
 
@@ -251,14 +251,16 @@ const projectInfo = await ctx.tools.memory_list({
 
 The plugin implements persistent memory by:
 
-1. **File Storage**: Atomic `writeFile(tmp)+rename` to `~/.dsh/memory.json` (no double-write), `mkdir -p`, max 5000 facts
-2. **Performance**: In-memory `mtime`+`size` cache in `lib/storage.js:8-78` — no re-read if file unchanged, clone on return, `save` updates cache
-3. **Efficient Lookups**: Hybrid search via `lib/search/scoring.js:12-137` (token Jaccard + substring boosts) then ISO timestamp desc; empty query → recency
-4. **Upsert Behavior**: `memory_store` replaces existing memories with the same key and moves it to most-recent
-5. **Validation**: `key`/`category` kebab-case (`^[a-z0-9]+(-[a-z0-9]+)*$`), `value` ≤10000 chars, `category` ≤32 chars
-6. **Recovery**: On JSON SyntaxError, backs up to `memory.json.corrupt.<ts>` and returns empty store
-7. **Modular Layout**: `lib/config.js`, `lib/storage.js`, `lib/validation.js`, `lib/search/scoring.js`, `lib/tools/*` (DSH `apply` re-exports)
-8. **DSH Idioms**: `Config` via `@deepseek-ai/schemastery`, `defineTool` with `timeoutMs:5000`, `isConcurrencySafe` for reads, `kind` hints, `exec.signal` abort, `peerDependencies`
+1. **File Storage**: Atomic `writeFile(tmp)+rename` to `~/.dsh/memory.json` (no double-write), `mkdir -p`, max 5000 facts, orphan `*.tmp.*` sweep (>1h) via `readdir` on `load`
+2. **Concurrency**: Per-file `withWriteLock` Promise queue (`lib/storage.js:47-62`) serializes `store/delete/clear` `load→mutate→save` — prevents lost updates; reads remain `isConcurrencySafe`
+3. **Timestamps**: `timestamp` (ISO) + `timestampMs` (numeric, `Date.now()`) generated internally; `compareRecent` prefers `timestampMs` (no `Date.parse` per compare); old files migrated on `load` (backfill `timestampMs` via `Date.parse`)
+4. **Performance**: `mtime`+`size` cache (`lib/storage.js:105-115`), inverted index `Map<token,Set<id>>` + `Map<id,{hash,tokens}>` cache (`lib/search/scoring.js:50-120`) — `hybridSearch` union of id sets → sub-linear, fallback linear on miss
+5. **Efficient Lookups**: Hybrid search token Jaccard + substring boosts then `timestampMs` desc; empty query → recency
+6. **Upsert**: `memory_store` replaces existing key and moves to most-recent
+7. **Validation**: `key`/`category` kebab-case, `value` ≤10000, `category` ≤32, `timestampMs` `0..4102444800000` (`lib/validation.js:5-27`), `MemoryPluginError` + 3× retry for transient `EACCES/EBUSY`
+8. **Recovery**: `SyntaxError` → `*.corrupt.*` backup + empty; `ENOENT` → empty; graceful degradation index→linear
+9. **Modular Layout**: `lib/config.js`, `lib/storage.js`, `lib/validation.js`, `lib/search/scoring.js`, `lib/tools/*` (DSH `apply` re-exports)
+10. **DSH Idioms**: `Config` via `schemastery`, `defineTool` `timeoutMs:5000` `isConcurrencySafe` `kind` hints `exec.signal` `peerDependencies`
 
 ## Requirements
 
