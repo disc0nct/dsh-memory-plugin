@@ -7,12 +7,13 @@ A persistent memory plugin for DeepSeek Harness (DSH) that enables agents to sto
 ## Features
 
 - 🧠 **Persistent Storage**: Memories are saved to disk and survive across sessions
-- 🔍 **Flexible Search**: Search memories by keyword or category (keys, values, and categories)
+- 🔍 **Flexible Search**: Hybrid `keyword+semantic` (token Jaccard + substring) with `mode: hybrid|keyword|semantic`
 - 🏷️ **Categorization**: Organize memories with optional categories (kebab-case, defaults to `general`)
-- 📋 **Six Tools**: `memory_store`, `memory_search`, `memory_get`, `memory_list`, `memory_delete`, `memory_clear`
+- 📋 **Seven Tools**: `memory_store`, `memory_search`, `memory_get`, `memory_list`, `memory_delete`, `memory_clear`, `memory_stats`
 - 🔄 **Atomic Writes**: `write+rename` with `mkdir -p`, corrupt-file recovery to `*.corrupt.*`
-- ✅ **Validation & Safety**: kebab-case keys, length limits, `memory_clear` requires `confirm:true`
-- ⚡ **DSH-Native UX**: `defineTool` with `isConcurrencySafe` (reads parallel), `presentCall` `kind: search/read/edit/delete`
+- ⚡ **Performance**: In-memory `mtime` cache (no re-read if unchanged), `MAX_FACTS` cap, `timeoutMs:5000`, `isConcurrencySafe` for reads
+- ✅ **Validation & Safety**: kebab-case keys, length limits, `memory_clear` requires `confirm:true`, `exec.signal` abort handling
+- 🧩 **Modular & DSH-Native**: `lib/config|storage|validation|search/scoring|tools/*`, `peerDependencies` to avoid dual-instance `prepare` bug
 
 ## Installation
 
@@ -158,6 +159,14 @@ await ctx.tools.memory_clear(); // { cleared:false, count: N }
 await ctx.tools.memory_clear({ confirm: true }); // { cleared:true, count: N }
 ```
 
+#### `memory_stats`
+Get health stats (count, per-category, oldest/newest, file size).
+
+```javascript
+const stats = await ctx.tools.memory_stats();
+console.log(stats.count, stats.categories); // {count: 12, categories:{project:5}}
+```
+
 ## Memory Storage Format
 
 Memories are stored in `~/.dsh/memory.json` with this structure:
@@ -243,19 +252,21 @@ const projectInfo = await ctx.tools.memory_list({
 The plugin implements persistent memory by:
 
 1. **File Storage**: Atomic `writeFile(tmp)+rename` to `~/.dsh/memory.json` (no double-write), `mkdir -p`, max 5000 facts
-2. **Efficient Lookups**: Loads entire file per op, hybrid search scores via token Jaccard + substring boosts, then ISO timestamp desc
-3. **Upsert Behavior**: `memory_store` replaces existing memories with the same key and moves it to most-recent
-4. **Validation**: `key`/`category` kebab-case (`^[a-z0-9]+(-[a-z0-9]+)*$`), `value` ≤10000 chars, `category` ≤32 chars
-5. **Recovery**: On JSON SyntaxError, backs up to `memory.json.corrupt.<ts>` and returns empty store
-6. **Modular Layout**: `lib/config.js`, `lib/storage.js`, `lib/validation.js`, `lib/search/scoring.js`, `lib/tools/*` (DSH `apply` re-exports)
-7. **DSH Idioms**: `Config` via `@deepseek-ai/schemastery`, `defineTool` with `timeoutMs:5000`, `isConcurrencySafe` for reads, `kind` hints
+2. **Performance**: In-memory `mtime`+`size` cache in `lib/storage.js:8-78` — no re-read if file unchanged, clone on return, `save` updates cache
+3. **Efficient Lookups**: Hybrid search via `lib/search/scoring.js:12-137` (token Jaccard + substring boosts) then ISO timestamp desc; empty query → recency
+4. **Upsert Behavior**: `memory_store` replaces existing memories with the same key and moves it to most-recent
+5. **Validation**: `key`/`category` kebab-case (`^[a-z0-9]+(-[a-z0-9]+)*$`), `value` ≤10000 chars, `category` ≤32 chars
+6. **Recovery**: On JSON SyntaxError, backs up to `memory.json.corrupt.<ts>` and returns empty store
+7. **Modular Layout**: `lib/config.js`, `lib/storage.js`, `lib/validation.js`, `lib/search/scoring.js`, `lib/tools/*` (DSH `apply` re-exports)
+8. **DSH Idioms**: `Config` via `@deepseek-ai/schemastery`, `defineTool` with `timeoutMs:5000`, `isConcurrencySafe` for reads, `kind` hints, `exec.signal` abort, `peerDependencies`
 
 ## Requirements
 
-- DeepSeek Harness (DSH) v0.1.0-rc.7 or later (tested with `rc.8`)
-- Node.js v18.0.0 or later (uses `crypto.randomUUID`, `fs/promises.rename`)
+- DeepSeek Harness (DSH) v0.1.0-rc.8 or later
+- Node.js v18.0.0 or later (uses `crypto.randomUUID`, `fs/promises.rename`/`stat`)
 - Peer dependencies:
-  - `@deepseek-ai/dsh-tools`: ^0.1.0-rc.7
+  - `@deepseek-ai/cordis`: ^4.0.1
+  - `@deepseek-ai/dsh-tools`: ^0.1.0-rc.8
   - `@deepseek-ai/schemastery`: ^3.18.1
 
 ## License

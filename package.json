@@ -1,6 +1,6 @@
 {
   "name": "@deepseek-ai/dsh-tool-memory",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "A persistent memory plugin for DeepSeek Harness that enables agents to store and recall information across sessions — DSH-native tools with atomic storage, validation, and concurrency-safe reads",
   "main": "lib/index.js",
   "type": "module",

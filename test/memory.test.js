@@ -35,9 +35,9 @@ describe("tool-memory DSH best-practice compliance", () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  it("registers 6 tools with correct concurrency & timeout", () => {
-    assert.equal(tools.length, 6);
-    const expected = ["memory_store", "memory_search", "memory_get", "memory_list", "memory_delete", "memory_clear"];
+  it("registers 7 tools with correct concurrency & timeout", () => {
+    assert.equal(tools.length, 7);
+    const expected = ["memory_store", "memory_search", "memory_get", "memory_list", "memory_delete", "memory_clear", "memory_stats"];
     for (const n of expected) assert.ok(getTool(n), `missing ${n}`);
     // read tools should be concurrency safe
     assert.equal(getTool("memory_search").isConcurrencySafe({}), true);
